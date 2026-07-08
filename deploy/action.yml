@@ -1,0 +1,67 @@
+name: 'HappyView Deploy'
+description: 'Deploy lexicons, scripts, jobs, and labelers to a HappyView instance'
+author: 'gamesgamesgamesgamesgames'
+branding:
+  icon: 'upload-cloud'
+  color: 'purple'
+inputs:
+  happyview-url:
+    description: 'Base URL of the HappyView instance'
+    required: true
+  api-key:
+    description: 'hv_ admin API key (use a secret)'
+    required: true
+  admin-path:
+    description: 'Admin API mount path'
+    required: false
+    default: '/admin'
+  lexicons:
+    description: 'Newline-delimited glob pattern list for lexicon JSON (! excludes)'
+    required: false
+    default: 'lexicons/**/*.json'
+  scripts:
+    description: 'Newline-delimited glob pattern list for route/record Lua scripts'
+    required: false
+    default: 'lua/**/*.lua'
+  jobs:
+    description: 'Newline-delimited glob pattern list for job Lua scripts'
+    required: false
+    default: 'jobs/**/*.lua'
+  labelers:
+    description: 'Newline-delimited glob pattern list for labeler Lua scripts'
+    required: false
+    default: 'labelers/**/*.lua'
+  prune:
+    description: 'Delete remote lexicons/scripts absent from the repo'
+    required: false
+    default: 'false'
+  changed-files:
+    description: 'Limit deploy to these changed paths (JSON array or newline list)'
+    required: false
+    default: ''
+  backfill:
+    description: 'Set the backfill flag on lexicon upload'
+    required: false
+    default: 'true'
+  dry-run:
+    description: 'Log planned actions without writing'
+    required: false
+    default: 'false'
+outputs:
+  lexicons-deployed:
+    description: 'Number of lexicons created/updated'
+  scripts-deployed:
+    description: 'Number of route/record scripts created/updated'
+  jobs-deployed:
+    description: 'Number of job scripts created/updated'
+  labelers-deployed:
+    description: 'Number of labeler scripts created/updated'
+  lexicons-pruned:
+    description: 'Number of lexicons deleted'
+  scripts-pruned:
+    description: 'Number of scripts deleted'
+  errors:
+    description: 'Number of errors encountered'
+runs:
+  using: 'node24'
+  main: 'dist/index.cjs'

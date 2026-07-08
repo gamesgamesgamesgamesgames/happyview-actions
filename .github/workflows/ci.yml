@@ -1,0 +1,85 @@
+name: CI/CD
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Assert committed bundles are up to date
+        run: |
+          if ! git diff --exit-code -- deploy/dist lint/dist; then
+            echo "::error::dist/ is out of date — run 'npm run build' and commit the result."
+            exit 1
+          fi
+
+  commitlint:
+    name: Commitlint
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+
+  release:
+    name: Release
+    needs: build-test
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main'
+        && !contains(github.event.head_commit.message, 'skip ci'))
+      || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - name: Build distribution
+        run: npm run build
+      - name: Force-add dist for release
+        run: git add -f deploy/dist lint/dist
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+      - name: Read released version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "major=$(echo "$VERSION" | cut -d. -f1)" >> "$GITHUB_OUTPUT"
+      - name: Move major version tag
+        if: steps.version.outputs.version != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -fa "v${{ steps.version.outputs.major }}" -m "Update v${{ steps.version.outputs.major }} to v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.major }}" --force
