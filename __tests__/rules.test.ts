@@ -13,13 +13,13 @@ describe('lint', () => {
   it('reports plan errors and warnings', async () => {
     const disc = d({
       lexicons: [
-        { file: 'lexicons/g/getGame.json', rel: 'g/getGame.json', nsid: 'g.getGame', mainType: 'query', json: {}, parseError: null },
+        { file: 'lexicons/com/g/getGame.json', rel: 'com/g/getGame.json', nsid: 'com.g.getGame', mainType: 'query', json: {}, parseError: null },
       ],
       scripts: [{ file: 'lua/orphan.lua', rel: 'orphan.lua' }],
     })
     const rep = await lint(disc, { cwd, checkLuaSyntax: false })
     expect(rep.errors.some((e) => e.file === 'lua/orphan.lua')).toBe(true)
-    expect(rep.warnings.some((w) => w.file === 'lexicons/g/getGame.json')).toBe(true)
+    expect(rep.warnings.some((w) => w.file === 'lexicons/com/g/getGame.json')).toBe(true)
   })
 
   it('passes valid Lua and flags invalid Lua', async () => {

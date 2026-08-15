@@ -11,13 +11,13 @@ describe('buildPlan', () => {
     const plan = buildPlan(
       d({
         lexicons: [
-          { file: 'lexicons/g/getGame.json', rel: 'g/getGame.json', nsid: 'g.getGame', mainType: 'query', json: { id: 'g.getGame' }, parseError: null },
+          { file: 'lexicons/com/g/getGame.json', rel: 'com/g/getGame.json', nsid: 'com.g.getGame', mainType: 'query', json: { id: 'com.g.getGame' }, parseError: null },
         ],
-        scripts: [{ file: 'lua/g/getGame.lua', rel: 'g/getGame.lua' }],
+        scripts: [{ file: 'lua/com/g/getGame.lua', rel: 'com/g/getGame.lua' }],
       }),
     )
-    expect(plan.items).toContainEqual({ kind: 'lexicon', nsid: 'g.getGame', json: { id: 'g.getGame' }, file: 'lexicons/g/getGame.json' })
-    expect(plan.items).toContainEqual({ kind: 'script', trigger: 'xrpc.query:g.getGame', file: 'lua/g/getGame.lua' })
+    expect(plan.items).toContainEqual({ kind: 'lexicon', nsid: 'com.g.getGame', json: { id: 'com.g.getGame' }, file: 'lexicons/com/g/getGame.json' })
+    expect(plan.items).toContainEqual({ kind: 'script', trigger: 'xrpc.query:com.g.getGame', file: 'lua/com/g/getGame.lua' })
     expect(plan.diagnostics).toEqual([])
   })
 
@@ -33,12 +33,12 @@ describe('buildPlan', () => {
     const plan = buildPlan(
       d({
         lexicons: [
-          { file: 'lexicons/g/getGame.json', rel: 'g/getGame.json', nsid: 'g.getGame', mainType: 'query', json: {}, parseError: null },
+          { file: 'lexicons/com/g/getGame.json', rel: 'com/g/getGame.json', nsid: 'com.g.getGame', mainType: 'query', json: {}, parseError: null },
         ],
       }),
     )
     expect(plan.diagnostics).toContainEqual(
-      expect.objectContaining({ level: 'warning', file: 'lexicons/g/getGame.json' }),
+      expect.objectContaining({ level: 'warning', file: 'lexicons/com/g/getGame.json' }),
     )
   })
 
@@ -63,17 +63,17 @@ describe('buildPlan', () => {
   it('changed-files keeps a pair when either side changed', () => {
     const disc = d({
       lexicons: [
-        { file: 'lexicons/g/getGame.json', rel: 'g/getGame.json', nsid: 'g.getGame', mainType: 'query', json: {}, parseError: null },
-        { file: 'lexicons/g/other.json', rel: 'g/other.json', nsid: 'g.other', mainType: 'query', json: {}, parseError: null },
+        { file: 'lexicons/com/g/getGame.json', rel: 'com/g/getGame.json', nsid: 'com.g.getGame', mainType: 'query', json: {}, parseError: null },
+        { file: 'lexicons/com/g/other.json', rel: 'com/g/other.json', nsid: 'com.g.other', mainType: 'query', json: {}, parseError: null },
       ],
       scripts: [
-        { file: 'lua/g/getGame.lua', rel: 'g/getGame.lua' },
-        { file: 'lua/g/other.lua', rel: 'g/other.lua' },
+        { file: 'lua/com/g/getGame.lua', rel: 'com/g/getGame.lua' },
+        { file: 'lua/com/g/other.lua', rel: 'com/g/other.lua' },
       ],
     })
-    const plan = buildPlan(disc, ['lexicons/g/getGame.json'])
+    const plan = buildPlan(disc, ['lexicons/com/g/getGame.json'])
     const files = plan.items.map((i) => i.file).sort()
-    expect(files).toEqual(['lexicons/g/getGame.json', 'lua/g/getGame.lua'])
+    expect(files).toEqual(['lexicons/com/g/getGame.json', 'lua/com/g/getGame.lua'])
   })
 
   it('errors on a lexicon with an invalid NSID', () => {
@@ -88,8 +88,8 @@ describe('buildPlan', () => {
     const plan = buildPlan(
       d({
         lexicons: [
-          { file: 'lexicons/a/x.json', rel: 'a/x.json', nsid: 'a.x', mainType: 'record', json: {}, parseError: null },
-          { file: 'vendor/a/x.json', rel: 'a/x.json', nsid: 'a.x2', mainType: 'record', json: {}, parseError: null },
+          { file: 'lexicons/com/a/x.json', rel: 'com/a/x.json', nsid: 'com.a.x', mainType: 'record', json: {}, parseError: null },
+          { file: 'vendor/com/a/x.json', rel: 'com/a/x.json', nsid: 'com.a.x2', mainType: 'record', json: {}, parseError: null },
         ],
       }),
     )

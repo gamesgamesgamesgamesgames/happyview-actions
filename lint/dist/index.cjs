@@ -27085,19 +27085,32 @@ var import_promises2 = __toESM(require("node:fs/promises"), 1);
 var import_node_path3 = __toESM(require("node:path"), 1);
 var import_luaparse = __toESM(require_luaparse(), 1);
 
+// node_modules/@happyview/nsid/dist/index.js
+var NSID_PATTERN = "^[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(\\.[a-zA-Z][a-zA-Z0-9]{0,62})$";
+var MAX_NSID_LEN = 317;
+var NSID_RE = new RegExp(NSID_PATTERN);
+function isValidNsid(nsid) {
+  return nsid.length <= MAX_NSID_LEN && NSID_RE.test(nsid);
+}
+var InvalidNsidError = class extends Error {
+  constructor(nsid) {
+    super(
+      nsid.length > MAX_NSID_LEN ? `invalid NSID '${nsid}': must be at most ${MAX_NSID_LEN} characters` : `invalid NSID '${nsid}': must be at least three dot-separated segments, where only the first and last must start with a letter and the last takes no hyphens (see https://atproto.com/specs/nsid)`
+    );
+    this.nsid = nsid;
+    this.name = "InvalidNsidError";
+  }
+  nsid;
+};
+function assertValidNsid(nsid) {
+  if (!isValidNsid(nsid)) throw new InvalidNsidError(nsid);
+}
+
 // src/core/triggers.ts
-var NSID_SEG = /^[a-zA-Z][a-zA-Z0-9-]*$/;
 var JOB_TYPE_RE = /^[a-z0-9][a-z0-9._-]*$/;
+var RESERVED_JOB_PREFIX = "happyview.";
 function validateNsid(nsid) {
-  const segs = nsid.split(".");
-  if (segs.length < 2) {
-    throw new Error(`invalid NSID '${nsid}': need at least 2 dot-separated segments`);
-  }
-  for (const seg of segs) {
-    if (!NSID_SEG.test(seg)) {
-      throw new Error(`invalid NSID '${nsid}': bad segment '${seg}'`);
-    }
-  }
+  assertValidNsid(nsid);
 }
 function validateJobType(type) {
   if (type.length < 1 || type.length > 128) {
@@ -27105,6 +27118,11 @@ function validateJobType(type) {
   }
   if (!JOB_TYPE_RE.test(type)) {
     throw new Error(`invalid job type '${type}': must match /^[a-z0-9][a-z0-9._-]*$/`);
+  }
+  if (type.startsWith(RESERVED_JOB_PREFIX)) {
+    throw new Error(
+      `invalid job type '${type}': the '${RESERVED_JOB_PREFIX}' prefix is reserved for built-in jobs`
+    );
   }
 }
 function relToDotted(rel) {

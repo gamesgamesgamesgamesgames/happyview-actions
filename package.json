@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@actions/core": "^3.0.1",
+    "@happyview/nsid": "^1.0.0",
     "fast-glob": "^3.3.2",
     "glob-parent": "^6.0.2",
     "luaparse": "^0.3.1"

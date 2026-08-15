@@ -66,12 +66,12 @@ describe('runDeploy', () => {
 
   it('prune uses the full scan, not the changed-files-filtered items', async () => {
     const c = fakeClient({
-      listLexicons: vi.fn(async () => ['a.b', 'c.d']),
+      listLexicons: vi.fn(async () => ['com.a.b', 'com.c.d']),
       listScripts: vi.fn(async () => [] as string[]),
     })
     const full = [
-      { kind: 'lexicon', nsid: 'a.b', json: {}, file: 'lexicons/games/g5/getGame.json' },
-      { kind: 'lexicon', nsid: 'c.d', json: {}, file: 'lexicons/games/g5/getGame.json' },
+      { kind: 'lexicon', nsid: 'com.a.b', json: {}, file: 'lexicons/games/g5/getGame.json' },
+      { kind: 'lexicon', nsid: 'com.c.d', json: {}, file: 'lexicons/games/g5/getGame.json' },
     ] as Plan['allItems']
     // items filtered to just a.b (as if only a.b changed); allItems still has both
     const p = plan({ items: [full[0]], allItems: full })
@@ -82,7 +82,7 @@ describe('runDeploy', () => {
 
   it('dry-run performs no network writes', async () => {
     const c = fakeClient()
-    const p = plan({ items: [{ kind: 'lexicon', nsid: 'a.b', json: {}, file: 'lexicons/games/g5/getGame.json' }] })
+    const p = plan({ items: [{ kind: 'lexicon', nsid: 'com.a.b', json: {}, file: 'lexicons/games/g5/getGame.json' }] })
     const r = await runDeploy(p, c, { cwd, backfill: true, prune: false, dryRun: true })
     expect(c.upsertLexicon).not.toHaveBeenCalled()
     expect(r.lexiconsDeployed).toBe(1)
