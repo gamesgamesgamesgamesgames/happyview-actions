@@ -21,15 +21,7 @@
 				"assets": [
 					"package.json",
 					"package-lock.json",
-					"CHANGELOG.md",
-					{
-						"path": "deploy/dist/**",
-						"message": "Force add deploy/dist/ for release"
-					},
-					{
-						"path": "lint/dist/**",
-						"message": "Force add lint/dist/ for release"
-					}
+					"CHANGELOG.md"
 				],
 				"message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
 			}

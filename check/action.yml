@@ -1,0 +1,31 @@
+name: 'HappyView Check'
+description: 'Build a HappyView project without serving it, failing on any error (hpy happyview check)'
+author: 'gamesgamesgamesgamesgames'
+branding:
+  icon: 'check-circle'
+  color: 'green'
+inputs:
+  working-directory:
+    description: 'The HappyView project, the directory holding happyview.toml'
+    required: false
+    default: '.'
+  locked:
+    description: 'Fail rather than update happyview.lock when it no longer matches happyview.toml'
+    required: false
+    default: 'true'
+runs:
+  using: 'composite'
+  steps:
+    - name: hpy happyview check
+      shell: bash
+      env:
+        PROJECT: ${{ inputs.working-directory }}
+        LOCKED: ${{ inputs.locked }}
+      run: |
+        if ! command -v hpy > /dev/null; then
+          echo "::error::hpy is not installed; run gamesgamesgamesgamesgames/happyview-actions/setup-hpy first"
+          exit 1
+        fi
+        args=(--no-input -C "$PROJECT" happyview check)
+        if [ "$LOCKED" = "true" ]; then args+=(--locked); fi
+        hpy "${args[@]}"

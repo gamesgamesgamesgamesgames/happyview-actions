@@ -5,26 +5,135 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  PROJECT: fixtures/project
+
 jobs:
-  build-test:
-    name: Build & Test
+  setup-hpy:
+    name: setup-hpy (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: hpy
+        uses: ./setup-hpy
+        with:
+          working-directory: ${{ env.PROJECT }}
+      - name: hpy is on PATH at the pinned version
+        env:
+          VERSION: ${{ steps.hpy.outputs.version }}
+          BIN: ${{ steps.hpy.outputs.path }}
+        run: |
+          test "$(hpy --version)" = "hpy $VERSION"
+          test "$(command -v hpy)" = "$BIN/hpy"
+          test -d "$HPY_CACHE_DIR"
+          test -n "$(find "$HPY_CACHE_DIR" -maxdepth 0 -perm 700)"
+      - id: bad-version
+        continue-on-error: true
+        uses: ./setup-hpy
+        with:
+          version: beta
+          cache: 'false'
+      - name: A version that is not an exact release is refused
+        if: steps.bad-version.outcome != 'failure'
+        run: exit 1
+
+  check-and-test:
+    name: check and test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: ./setup-hpy
         with:
-          node-version-file: .node-version
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-      - name: Assert committed bundles are up to date
+          working-directory: ${{ env.PROJECT }}
+      - uses: ./check
+        with:
+          working-directory: ${{ env.PROJECT }}
+      - uses: ./test
+        with:
+          working-directory: ${{ env.PROJECT }}
+      - uses: ./test
+        with:
+          working-directory: ${{ env.PROJECT }}
+          filter: hello
+      - id: no-tests
+        continue-on-error: true
+        uses: ./test
+        with:
+          working-directory: ${{ env.PROJECT }}
+          filter: no-such-test
+      - name: A run with no tests fails the step
+        if: steps.no-tests.outcome != 'failure'
+        run: exit 1
+      - name: happyview.lock is unchanged
+        run: git diff --exit-code -- "$PROJECT"
+
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    env:
+      HAPPYVIEW_URL: http://127.0.0.1:3999
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./setup-hpy
+        with:
+          working-directory: ${{ env.PROJECT }}
+      # Downloads the HappyView the project pins, which the instance runs.
+      - uses: ./check
+        with:
+          working-directory: ${{ env.PROJECT }}
+      - name: Start an instance with a key that holds only what a deploy needs
+        id: instance
         run: |
-          if ! git diff --exit-code -- deploy/dist lint/dist; then
-            echo "::error::dist/ is out of date — run 'npm run build' and commit the result."
-            exit 1
-          fi
+          command -v sqlite3 > /dev/null || { sudo apt-get update -q && sudo apt-get install -yq sqlite3; }
+          .github/scripts/serve-happyview.sh "$PROJECT" "$RUNNER_TEMP/instance" \
+            '["project:deploy","plugins:read","plugins:create"]'
+          echo "key=$(cat "$RUNNER_TEMP/instance/key")" >> "$GITHUB_OUTPUT"
+
+      - id: wrong-key
+        continue-on-error: true
+        uses: ./deploy
+        with:
+          url: ${{ env.HAPPYVIEW_URL }}
+          api-key: hv_00000000000000000000000000000000
+          working-directory: ${{ env.PROJECT }}
+      - name: A key the instance does not know fails the step
+        if: steps.wrong-key.outcome != 'failure'
+        run: exit 1
+
+      - uses: ./deploy
+        with:
+          url: ${{ env.HAPPYVIEW_URL }}
+          api-key: ${{ steps.instance.outputs.key }}
+          working-directory: ${{ env.PROJECT }}
+          dry-run: 'true'
+      - name: A dry run changes nothing
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' "$HAPPYVIEW_URL/xrpc/com.example.hello?name=ci")
+          test "$status" != 200
+
+      - uses: ./deploy
+        with:
+          url: ${{ env.HAPPYVIEW_URL }}
+          api-key: ${{ steps.instance.outputs.key }}
+          working-directory: ${{ env.PROJECT }}
+      - name: The deployed project answers
+        run: |
+          test "$(curl -fsS "$HAPPYVIEW_URL/xrpc/com.example.hello?name=ci")" = '{"message":"Hello, ci!"}'
+
+      - name: A second deploy finds the instance up to date
+        uses: ./deploy
+        with:
+          url: ${{ env.HAPPYVIEW_URL }}
+          api-key: ${{ steps.instance.outputs.key }}
+          working-directory: ${{ env.PROJECT }}
+
+      - name: HappyView's log
+        if: failure()
+        run: tail -n 200 "$RUNNER_TEMP/instance/happyview.log"
 
   commitlint:
     name: Commitlint
@@ -43,11 +152,14 @@ jobs:
 
   release:
     name: Release
-    needs: build-test
+    needs: [setup-hpy, check-and-test, deploy]
+    # Only from main: dispatched from another branch, the tag step below
+    # would move the major's tag onto that branch.
     if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main'
-        && !contains(github.event.head_commit.message, 'skip ci'))
-      || github.event_name == 'workflow_dispatch'
+      github.ref == 'refs/heads/main'
+      && ((github.event_name == 'push'
+          && !contains(github.event.head_commit.message, 'skip ci'))
+        || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -62,10 +174,6 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - name: Build distribution
-        run: npm run build
-      - name: Force-add dist for release
-        run: git add -f deploy/dist lint/dist
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

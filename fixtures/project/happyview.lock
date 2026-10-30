@@ -1,0 +1,20 @@
+# Written by hpy from happyview.toml. Commit it; don't edit it by hand.
+
+version = 2
+
+[happyview]
+version = "3.0.0-alpha.43"
+
+[[plugin]]
+id = "happyview-lua"
+kind = "interpreter"
+keys = ["lua"]
+project = "at://did:plc:mo7vq4jbioxwafy5zkcc3eux/software.release.project/happyview-lua"
+version = "1.0.0-alpha.7"
+channel = "alpha"
+version_uri = "at://did:plc:mo7vq4jbioxwafy5zkcc3eux/software.release.version/happyview-lua.1.0.0-alpha.7"
+manifest_cid = "bafyreify4tuliala3pwr22pu2x6fg4n5jtxxwnckzwnumzod5pvboqe2ju"
+package_cid = "bafkreiegduv3yhqmxf3kwl4nsexer5gwb7iywwut33cafbn6azjjli6qt4"
+manifest_blob_cid = "bafkreigdalaablfhvmdqt6cc2lw4cm4j5p5jjy2fl6gt5gks6lkxlyr4ou"
+dependencies = []
+capabilities = ["library:call", "script:host", "script:test", "wasi:clock", "wasi:random", "wasi:stdio"]
