@@ -153,10 +153,13 @@ jobs:
   release:
     name: Release
     needs: [setup-hpy, check-and-test, deploy]
+    # Only from main: dispatched from another branch, the tag step below
+    # would move the major's tag onto that branch.
     if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main'
-        && !contains(github.event.head_commit.message, 'skip ci'))
-      || github.event_name == 'workflow_dispatch'
+      github.ref == 'refs/heads/main'
+      && ((github.event_name == 'push'
+          && !contains(github.event.head_commit.message, 'skip ci'))
+        || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       contents: write
