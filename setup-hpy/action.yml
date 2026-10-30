@@ -1,0 +1,98 @@
+name: 'Set up hpy'
+description: 'Install a pinned hpy, the HappyProto command line, and cache what it downloads'
+author: 'gamesgamesgamesgamesgames'
+branding:
+  icon: 'download'
+  color: 'purple'
+inputs:
+  version:
+    description: 'The exact hpy release to install, from its beta channel'
+    required: false
+    default: '1.0.0-beta.3'
+  working-directory:
+    description: 'The HappyView project, whose happyview.lock keys the cache of the HappyView binary and plugins hpy downloads'
+    required: false
+    default: '.'
+  cache:
+    description: 'Cache hpy, and the HappyView binary and plugins it downloads, between runs'
+    required: false
+    default: 'true'
+outputs:
+  version:
+    description: 'The hpy version installed'
+    value: ${{ steps.install.outputs.version }}
+  path:
+    description: 'The directory holding the hpy binary, which is added to PATH'
+    value: ${{ steps.paths.outputs.bin }}
+  cache-hit:
+    description: 'Whether hpy itself came from the cache'
+    value: ${{ steps.cache-hpy.outputs.cache-hit == 'true' }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve paths
+      id: paths
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        case "$RUNNER_OS" in
+          Linux|macOS) ;;
+          *) echo "::error::setup-hpy supports Linux and macOS runners, not $RUNNER_OS"; exit 1 ;;
+        esac
+        if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+          echo "::error::version must be an exact hpy release such as 1.0.0-beta.3, not '$VERSION'"
+          exit 1
+        fi
+        echo "bin=$RUNNER_TOOL_CACHE/hpy/$VERSION/$RUNNER_ARCH" >> "$GITHUB_OUTPUT"
+        echo "cache=$RUNNER_TEMP/hpy-cache" >> "$GITHUB_OUTPUT"
+
+    - name: Restore hpy
+      id: cache-hpy
+      if: inputs.cache == 'true'
+      uses: actions/cache@v6
+      with:
+        path: ${{ steps.paths.outputs.bin }}
+        key: hpy-${{ inputs.version }}-${{ runner.os }}-${{ runner.arch }}
+
+    - name: Install hpy
+      id: install
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        BIN: ${{ steps.paths.outputs.bin }}
+      run: |
+        if [ ! -x "$BIN/hpy" ]; then
+          # The release's own installer: it picks the build for this machine
+          # and checks it against the checksum baked into it. An unmanaged
+          # install touches no shell profile.
+          curl --proto '=https' --tlsv1.2 -fsSL --retry 3 \
+            "https://github.com/happyproto/cli/releases/download/v$VERSION/hpy-cli-installer.sh" \
+            | HPY_CLI_UNMANAGED_INSTALL="$BIN" sh
+        fi
+        echo "$BIN" >> "$GITHUB_PATH"
+        installed=$("$BIN/hpy" --version | awk '{print $2}')
+        if [ "$installed" != "$VERSION" ]; then
+          echo "::error::installed hpy $installed, expected $VERSION"
+          exit 1
+        fi
+        echo "version=$installed" >> "$GITHUB_OUTPUT"
+
+    - name: Restore the HappyView binary and plugins
+      if: inputs.cache == 'true'
+      uses: actions/cache@v6
+      with:
+        path: ${{ steps.paths.outputs.cache }}
+        key: hpy-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(format('{0}/happyview.lock', inputs.working-directory)) }}
+        restore-keys: |
+          hpy-cache-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Point hpy at its cache
+      shell: bash
+      env:
+        CACHE_DIR: ${{ steps.paths.outputs.cache }}
+      run: |
+        # hpy refuses a cache directory other users can read, and a restore
+        # may have brought back a looser mode.
+        mkdir -p "$CACHE_DIR" && chmod 700 "$CACHE_DIR"
+        echo "HPY_CACHE_DIR=$CACHE_DIR" >> "$GITHUB_ENV"
