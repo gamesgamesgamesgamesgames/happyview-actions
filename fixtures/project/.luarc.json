@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "diagnostics.globals": [
+    "handle",
+    "describe",
+    "it",
+    "pending",
+    "before_each",
+    "after_each",
+    "test"
+  ],
+  "runtime.version": "Lua 5.4",
+  "workspace.ignoreDir": [
+    ".happyview"
+  ],
+  "workspace.library": [
+    ".happyview/types/lua"
+  ]
+}

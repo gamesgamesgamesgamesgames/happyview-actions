@@ -1,67 +1,52 @@
 name: 'HappyView Deploy'
-description: 'Deploy lexicons, scripts, jobs, and labelers to a HappyView instance'
+description: 'Make a HappyView instance match a project: its plugins, lexicons, scripts and modules (hpy happyview deploy)'
 author: 'gamesgamesgamesgamesgames'
 branding:
   icon: 'upload-cloud'
   color: 'purple'
 inputs:
-  happyview-url:
-    description: 'Base URL of the HappyView instance'
+  url:
+    description: 'The instance, e.g. https://api.example.com'
     required: true
   api-key:
-    description: 'hv_ admin API key (use a secret)'
+    description: 'An hv_ API key from the instance (use a secret). It needs project:deploy, plugins:read and plugins:create, and plugins:delete for prune-plugins'
     required: true
-  admin-path:
-    description: 'Admin API mount path'
+  working-directory:
+    description: 'The HappyView project, the directory holding happyview.toml'
     required: false
-    default: '/admin'
-  lexicons:
-    description: 'Newline-delimited glob pattern list for lexicon JSON (! excludes)'
-    required: false
-    default: 'lexicons/**/*.json'
-  scripts:
-    description: 'Newline-delimited glob pattern list for route/record Lua scripts'
-    required: false
-    default: 'lua/**/*.lua'
-  jobs:
-    description: 'Newline-delimited glob pattern list for job Lua scripts'
-    required: false
-    default: 'jobs/**/*.lua'
-  labelers:
-    description: 'Newline-delimited glob pattern list for labeler Lua scripts'
-    required: false
-    default: 'labelers/**/*.lua'
-  prune:
-    description: 'Delete remote lexicons/scripts absent from the repo'
-    required: false
-    default: 'false'
-  changed-files:
-    description: 'Limit deploy to these changed paths (JSON array or newline list)'
-    required: false
-    default: ''
-  backfill:
-    description: 'Set the backfill flag on lexicon upload'
-    required: false
-    default: 'true'
+    default: '.'
   dry-run:
-    description: 'Log planned actions without writing'
+    description: 'Show what would change on the instance without changing it'
     required: false
     default: 'false'
-outputs:
-  lexicons-deployed:
-    description: 'Number of lexicons created/updated'
-  scripts-deployed:
-    description: 'Number of route/record scripts created/updated'
-  jobs-deployed:
-    description: 'Number of job scripts created/updated'
-  labelers-deployed:
-    description: 'Number of labeler scripts created/updated'
-  lexicons-pruned:
-    description: 'Number of lexicons deleted'
-  scripts-pruned:
-    description: 'Number of scripts deleted'
-  errors:
-    description: 'Number of errors encountered'
+  prune-plugins:
+    description: 'Also uninstall interpreters and libraries that happyview.lock does not list'
+    required: false
+    default: 'false'
 runs:
-  using: 'node24'
-  main: 'dist/index.cjs'
+  using: 'composite'
+  steps:
+    - name: hpy happyview deploy
+      shell: bash
+      env:
+        PROJECT: ${{ inputs.working-directory }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        PRUNE_PLUGINS: ${{ inputs.prune-plugins }}
+        HPY_HV_URL: ${{ inputs.url }}
+        HPY_HV_API_KEY: ${{ inputs.api-key }}
+      run: |
+        if ! command -v hpy > /dev/null; then
+          echo "::error::hpy is not installed; run gamesgamesgamesgamesgames/happyview-actions/setup-hpy first"
+          exit 1
+        fi
+        if [ -z "$HPY_HV_URL" ] || [ -z "$HPY_HV_API_KEY" ]; then
+          echo "::error::url and api-key are both required"
+          exit 1
+        fi
+        echo "::add-mask::$HPY_HV_API_KEY"
+        # --yes accepts the plan, and with it the capabilities happyview.lock
+        # records for each plugin, as committed and reviewed.
+        args=(--no-input -C "$PROJECT" happyview deploy --yes)
+        if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+        if [ "$PRUNE_PLUGINS" = "true" ]; then args+=(--prune-plugins); fi
+        hpy "${args[@]}"
