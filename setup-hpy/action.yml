@@ -8,7 +8,7 @@ inputs:
   version:
     description: 'The exact hpy release to install, from its beta channel'
     required: false
-    default: '1.0.0-beta.3'
+    default: '1.0.0-beta.5'
   working-directory:
     description: 'The HappyView project, whose happyview.lock keys the cache of the HappyView binary and plugins hpy downloads'
     required: false
@@ -41,7 +41,7 @@ runs:
           *) echo "::error::setup-hpy supports Linux and macOS runners, not $RUNNER_OS"; exit 1 ;;
         esac
         if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
-          echo "::error::version must be an exact hpy release such as 1.0.0-beta.3, not '$VERSION'"
+          echo "::error::version must be an exact hpy release such as 1.0.0-beta.5, not '$VERSION'"
           exit 1
         fi
         echo "bin=$RUNNER_TOOL_CACHE/hpy/$VERSION/$RUNNER_ARCH" >> "$GITHUB_OUTPUT"

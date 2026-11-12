@@ -66,7 +66,7 @@ A deploy accepts, on your behalf, the capabilities `happyview.lock` records for 
 
 | Input | Default | |
 | --- | --- | --- |
-| `version` | `1.0.0-beta.3` | The exact hpy release to install, from its beta channel. |
+| `version` | `1.0.0-beta.5` | The exact hpy release to install, from its beta channel. |
 | `working-directory` | `.` | The project whose `happyview.lock` keys the cache of the HappyView binary and plugins. |
 | `cache` | `true` | Cache hpy, and the HappyView binary and plugins it downloads, between runs. |
 
