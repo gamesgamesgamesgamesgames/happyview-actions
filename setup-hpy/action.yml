@@ -84,6 +84,9 @@ runs:
       with:
         path: ${{ steps.paths.outputs.cache }}
         key: hpy-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(format('{0}/happyview.lock', inputs.working-directory)) }}
+        # A cache from an older lock is safe to start from: hpy checks each
+        # cached plugin against happyview.lock's CIDs and fetches it again on
+        # a mismatch, and keeps each HappyView binary under its own version.
         restore-keys: |
           hpy-cache-${{ runner.os }}-${{ runner.arch }}-
 
