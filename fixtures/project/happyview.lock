@@ -3,7 +3,7 @@
 version = 2
 
 [happyview]
-version = "3.0.0-alpha.43"
+version = "3.0.0-beta.11"
 
 [[plugin]]
 id = "happyview-lua"
