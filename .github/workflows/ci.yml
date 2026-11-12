@@ -124,16 +124,44 @@ jobs:
         run: |
           test "$(curl -fsS "$HAPPYVIEW_URL/xrpc/com.example.hello?name=ci")" = '{"message":"Hello, ci!"}'
 
-      - name: A second deploy finds the instance up to date
+      - name: A second deploy succeeds
         uses: ./deploy
         with:
           url: ${{ env.HAPPYVIEW_URL }}
           api-key: ${{ steps.instance.outputs.key }}
           working-directory: ${{ env.PROJECT }}
+      # A deploy that re-sent its plugins or project every time would still
+      # succeed above; hpy's plan shows whether anything is left to send.
+      - name: The instance is up to date, with nothing left to deploy
+        env:
+          HPY_HV_URL: ${{ env.HAPPYVIEW_URL }}
+          HPY_HV_API_KEY: ${{ steps.instance.outputs.key }}
+        run: |
+          out=$(hpy --no-input -C "$PROJECT" happyview deploy --yes --dry-run 2>&1)
+          printf '%s\n' "$out"
+          grep -qx 'Plugins: up to date (1 from happyview.lock)' <<<"$out"
+          grep -qx 'Project: up to date' <<<"$out"
 
       - name: HappyView's log
         if: failure()
         run: tail -n 200 "$RUNNER_TEMP/instance/happyview.log"
+
+  release-tag:
+    name: release tag moves only on a release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: An unchanged version writes nothing; a new one writes the major
+        run: |
+          script=$PWD/.github/scripts/released-version.sh
+          cd "$(mktemp -d)"
+          echo '{"version": "2.0.0"}' > package.json
+
+          GITHUB_OUTPUT=$PWD/none "$script" 2.0.0
+          test ! -s none
+
+          GITHUB_OUTPUT=$PWD/released "$script" 1.0.0
+          test "$(cat released)" = "$(printf 'version=2.0.0\nmajor=2')"
 
   commitlint:
     name: Commitlint
@@ -152,7 +180,7 @@ jobs:
 
   release:
     name: Release
-    needs: [setup-hpy, check-and-test, deploy]
+    needs: [setup-hpy, check-and-test, deploy, release-tag]
     # Only from main: dispatched from another branch, the tag step below
     # would move the major's tag onto that branch.
     if: >-
@@ -174,16 +202,18 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
+      - name: Read the version before releasing
+        id: before
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
       - name: Read released version
         id: version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "major=$(echo "$VERSION" | cut -d. -f1)" >> "$GITHUB_OUTPUT"
+        env:
+          BEFORE: ${{ steps.before.outputs.version }}
+        run: .github/scripts/released-version.sh "$BEFORE"
       - name: Move major version tag
         if: steps.version.outputs.version != ''
         run: |
